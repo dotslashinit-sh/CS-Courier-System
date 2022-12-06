@@ -165,12 +165,14 @@ def searchCourier():
         "(1) from location or (2) to location? (1/2): "))
     if choice == 1:
         fromLoc = input("Enter from location: ").strip()
-        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s AND FromLoc LIKE %s",\
+        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s"\
+            "AND FromLoc LIKE %s",\
             (LoginInformation["Username"], fromLoc))
         couriers = Cur.fetchall()
     elif choice == 2:
         toLoc = input("Enter to location: ").strip()
-        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s AND ToLoc LIKE %s", \
+        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s"\
+            "AND ToLoc LIKE %s", \
             (LoginInformation["Username"], toLoc))
         couriers = Cur.fetchall()
     else:
