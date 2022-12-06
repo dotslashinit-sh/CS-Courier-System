@@ -1,5 +1,7 @@
 import mysql.connector
 
+import datetime # To get the current date and time
+
 # con: The primary connection to the existing up and running MySQL server.
 # cur: The primary cursor used to interact with the MySQL server.
 Con = mysql.connector.connect(user='root', password='root', database='courier', host='localhost')
@@ -18,7 +20,7 @@ def setup():
         "CREATE TABLE users(Username CHAR(30) PRIMARY KEY, Password CHAR(30))",
 
         # Couriers table
-        "CREATE TABLE couriers(CourierID CHAR(5) PRIMARY KEY, CustomerID CHAR(30) UNIQUE NOT NULL,"\
+        "CREATE TABLE couriers(CourierID CHAR(5) PRIMARY KEY, CustomerID CHAR(30) NOT NULL,"\
             "FromLoc TEXT, ToLoc TEXT,"\
             "ServiceTier CHAR(10), RequestDate DATE, FOREIGN KEY(CustomerID) REFERENCES users(Username))"
     ]
@@ -92,7 +94,7 @@ def sendCourier():
     print("Sending courier as", LoginInformation["Username"])
     fromLoc = input("Enter from location: ")
     toLoc = input("Enter to location: ")
-    requestDate = input("Enter the date of request (YYYY-MM-DD format): ")
+    requestDate = datetime.date.today().isoformat()
     print("Enter the service tier you would like to opt:"\
         " 1) Standard - Basic courier service with International shipping.",\
         " 2) Prime - Faster delivery ( + INR 1500.00 )",\
@@ -116,6 +118,30 @@ def sendCourier():
     print("Successfully sent courier! Your courier ID is", courierId)
     Con.commit()
 
+def _getAllCouriers():
+    global LoginInformation
+    Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s;", (LoginInformation["Username"],))
+    couriers = Cur.fetchall()
+    if couriers == []:
+        print("You haven't sent out any couriers yet. Try sending one now! :D")
+    return couriers
+
+def printCouriers(couriers):
+    if couriers == []:
+        return
+    print('-' * 67)
+    print("| {} | {} | {} | {} | {} |".format(\
+        "SlNo".rjust(4), "From".rjust(10), "To".rjust(10), \
+            "Date of Sending", "Service Tier"))
+    print('-' * 67)
+    for courier in couriers:
+        print("| {} | {} | {} | {} | {} |".\
+            format(courier[0].rjust(4), \
+                courier[2].rjust(10), courier[3].rjust(10), \
+                str(courier[5]).rjust(15), courier[4].rjust(12)))
+    print('-' * 67)
+
+
 def trackCourier():
     courierId = int(input("Enter your courier ID: ").strip())
     Cur.execute("SELECT * FROM couriers WHERE CourierID=%s", (courierId,))
@@ -123,6 +149,7 @@ def trackCourier():
     if dat == ():
         print("No courier with the given ID!")
     else:
+        global LoginInformation
         if dat[1] != LoginInformation["Username"]:
             print("Mismatch between currently logged in user and the user who sent the courier!",
             "Please login as the user who sent the courier to track it!")
@@ -130,6 +157,49 @@ def trackCourier():
             print(("Courier ID: {}\nService Tier: {}\nFrom location: " +\
                 "{}\nTo location: {}\nDate of sending: {}")\
                     .format(dat[0], dat[4], dat[2], dat[3], dat[5]))
+
+def searchCourier():
+    global LoginInformation
+    couriers = []
+    choice = int(input("Would you like to search by"+\
+        "(1) from location or (2) to location? (1/2): "))
+    if choice == 1:
+        fromLoc = input("Enter from location: ").strip()
+        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s AND FromLoc LIKE %s",\
+            (LoginInformation["Username"], fromLoc))
+        couriers = Cur.fetchall()
+    elif choice == 2:
+        toLoc = input("Enter to location: ").strip()
+        Cur.execute("SELECT * FROM couriers WHERE CustomerID=%s AND ToLoc LIKE %s", \
+            (LoginInformation["Username"], toLoc))
+        couriers = Cur.fetchall()
+    else:
+        return
+    if couriers == []:
+        print("Search results empty :(")
+    else:
+        printCouriers(couriers)
+
+def manageCouriers():
+    if LoginInformation == None:
+        print("You need to login in order manage your couriers!")
+        return
+    while True:
+        print('#' * 25)
+        print("Manage your couriers")
+        print(" 1) View all your couriers")
+        print(" 2) Track a courier")
+        print(" 3) Search courier by from or to location")
+        print(" *) Go back")
+        choice = int(input("Enter your choice: "))
+        if choice == 1:
+            printCouriers(_getAllCouriers())
+        elif choice == 2:
+            trackCourier()
+        elif choice == 3:
+            searchCourier()
+        else:
+            break
 
 #################### Main logic ####################
 
@@ -141,8 +211,9 @@ while True:
     print(" 1) Sign up")
     print(" 2) Log in")
     print(" 3) Send a courier")
-    print(" 4) Track a courier")
-    print("Anything else closes the program.")
+    print(" 4) Manage your couriers")
+    print(" 5) Admin tools: Rebuild the database")
+    print(" *) Exit")
     choice = int(input("Enter your choice: "))
     if choice == 1:
         signUp()
@@ -151,7 +222,9 @@ while True:
     elif choice == 3:
         sendCourier()
     elif choice == 4:
-        trackCourier()
+        manageCouriers()
+    elif choice == 5:
+        rebuild()
     else:
         break
 
